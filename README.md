@@ -1,16 +1,18 @@
-### Hi there 👋
+<table width="100%"> 
+  <tr>
+  <td width="50%">
+      
+&nbsp; <br> [![Spotify](https://novatoremk.vercel.app/api/spotify)](https://open.spotify.com/user/31kmjb7rnsmfmmguzpnbs5l5jeau)
 
-<!--
-**abhishzk/abhishzk** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+  </td>
+  <td width="50%">
 
-Here are some ideas to get you started:
+<br><p align="center">Everything here is available under the [Unlicense](https://choosealicense.com/licenses/unlicense/)!<br><br>
+  [![Linkedin](https://img.shields.io/badge/linked-in-369?style=flat-square&logo=linkedin&logoColor=white&color=blue)](https://www.linkedin.com/in/abhishzk)
+  [![E-Mail](https://img.shields.io/badge/email-reveal-2a8?style=flat-square&logo=gmail&logoColor=white)](https://mailhide.io/e/bDBBa)
+  [![Visits](https://badges.pufler.dev/visits/abhishzk/novatorem?logo=GitHub&label=github%20visits&color=336699&logoColor=white&style=flat-square)](https://github.com/novatorem)
+</p>
+  </td>
+  </table>
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+[//]: <> (The `&nbsp;` is to have Aphelion take up more space)
