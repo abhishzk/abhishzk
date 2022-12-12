@@ -11,6 +11,7 @@
   [![Linkedin](https://img.shields.io/badge/linked-in-369?style=flat-square&logo=linkedin&logoColor=white&color=blue)](https://www.linkedin.com/in/abhishzk)
   [![E-Mail](https://img.shields.io/badge/email-reveal-2a8?style=flat-square&logo=gmail&logoColor=white)](https://mailhide.io/e/bDBBa)
   [![Visits](https://badges.pufler.dev/visits/abhishzk?logo=GitHub&label=github%20visits&color=336699&logoColor=white&style=flat-square)](https://github.com/abhishzk)
+    ![](https://komarev.com/ghpvc/?username=abhishzk&label=PROFILE+VIEWS)
 </p>
   </td>
   </table>
