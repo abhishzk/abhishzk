@@ -63,10 +63,10 @@ function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying }) {
   const barCount = Math.min(48, Math.floor((vizMaxW + gap) / (barW + gap)));
   const bars = visualizerHeights(seed, Math.max(32, barCount));
 
-  const artClip = `<clipPath id="artClip"><rect x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" rx="12"/></clipPath>`;
+  const artClip = `<clipPath id="artClip"><rect x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" rx="14"/></clipPath>`;
   const artBlock = artDataUri
-    ? `<g clip-path="url(#artClip)"><image href="${artDataUri}" x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" preserveAspectRatio="xMidYMid slice"/></g><rect x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" rx="12" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1"/>`
-    : `<rect x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" rx="12" fill="#1a1a24" stroke="rgba(255,255,255,0.12)"/><text x="${artX + artSize / 2}" y="${artY + artSize / 2 + 7}" text-anchor="middle" font-size="28" fill="rgba(255,255,255,0.28)">♪</text>`;
+    ? `<g filter="url(#artShadow)"><g clip-path="url(#artClip)"><image href="${artDataUri}" x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" preserveAspectRatio="xMidYMid slice"/></g></g>`
+    : `<rect x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" rx="14" fill="#252530"/><text x="${artX + artSize / 2}" y="${artY + artSize / 2 + 7}" text-anchor="middle" font-size="28" fill="rgba(255,255,255,0.28)">♪</text>`;
 
   let x = vizLeft;
   const barEls = [];
@@ -93,25 +93,45 @@ function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying }) {
     x += barW + gap;
   }
 
+  const badgeW = Math.min(150, 28 + b.length * 7.2);
+  const badgeX = w - pad - badgeW;
+  const showLivePill = b === "now playing" && playing;
+  const badgePill = showLivePill
+    ? `<rect x="${badgeX}" y="22" width="${badgeW}" height="26" rx="13" fill="rgba(30,215,96,0.16)" stroke="rgba(30,215,96,0.28)" stroke-width="0.75"/>
+  <circle cx="${badgeX + 13}" cy="35" r="3.5" fill="#1ed760"/><text x="${badgeX + 21}" y="39" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="11" fill="rgba(240,255,248,0.95)" font-weight="600">${b}</text>`
+    : b
+      ? `<text x="${w - pad}" y="48" text-anchor="end" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="12" fill="rgba(255,255,255,0.38)">${b}</text>`
+      : "";
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="Spotify now playing">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#14141c"/>
-      <stop offset="100%" stop-color="#0c0c12"/>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a1a22"/>
+      <stop offset="45%" stop-color="#12121a"/>
+      <stop offset="100%" stop-color="#0a0a10"/>
     </linearGradient>
-    <linearGradient id="vizGrad" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0%" stop-color="#c4a574"/>
-      <stop offset="45%" stop-color="#5b9aa8"/>
-      <stop offset="100%" stop-color="#a67c52"/>
+    <radialGradient id="bgGlow" cx="22%" cy="28%" r="55%">
+      <stop offset="0%" stop-color="rgba(30,215,96,0.08)"/>
+      <stop offset="55%" stop-color="rgba(30,215,96,0)"/>
+    </radialGradient>
+    <linearGradient id="vizGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#d4b896"/>
+      <stop offset="40%" stop-color="#5ec4b0"/>
+      <stop offset="72%" stop-color="#4a9fd4"/>
+      <stop offset="100%" stop-color="#c9a27a"/>
     </linearGradient>
+    <filter id="artShadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.45"/>
+    </filter>
     ${artClip}
   </defs>
-  <rect x="0.5" y="0.5" width="${w - 1}" height="${h - 1}" rx="18" fill="url(#bg)" stroke="rgba(255,255,255,0.1)"/>
+  <rect x="0" y="0" width="${w}" height="${h}" rx="20" fill="url(#bg)"/>
+  <rect x="0" y="0" width="${w}" height="${h}" rx="20" fill="url(#bgGlow)"/>
   ${artBlock}
-  <text x="${textX}" y="56" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="22" fill="rgba(255,255,255,0.96)" font-weight="650">${t}</text>
-  <text x="${textX}" y="88" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="16" fill="rgba(255,255,255,0.64)">${a}</text>
-  ${b ? `<text x="${w - pad}" y="48" text-anchor="end" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="12" fill="rgba(255,255,255,0.42)">${b}</text>` : ""}
+  <text x="${textX}" y="58" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="23" fill="#f4f4f7" font-weight="680" letter-spacing="-0.02em">${t}</text>
+  <text x="${textX}" y="90" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="16" fill="rgba(255,255,255,0.55)">${a}</text>
+  ${badgePill}
   <g>${barEls.join("")}</g>
 </svg>`;
 }
@@ -131,7 +151,7 @@ function svgCard({ title, subtitle, right, accent = "#1DB954" }) {
       <stop offset="100%" stop-color="#0a0f1a"/>
     </linearGradient>
   </defs>
-  <rect x="0.5" y="0.5" width="${w - 1}" height="${h - 1}" rx="14" fill="url(#bg)" stroke="rgba(255,255,255,0.12)"/>
+  <rect x="0" y="0" width="${w}" height="${h}" rx="14" fill="url(#bg)"/>
   <circle cx="34" cy="34" r="12" fill="${accent}"/>
   <path d="M30 30c6 0 10 4 10 10" fill="none" stroke="rgba(0,0,0,0.35)" stroke-width="2" stroke-linecap="round"/>
   <path d="M28 34c5 0 8 3 8 8" fill="none" stroke="rgba(0,0,0,0.35)" stroke-width="2" stroke-linecap="round"/>
