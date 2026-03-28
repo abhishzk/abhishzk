@@ -14,7 +14,7 @@ function visualizerHeights(seedStr, count) {
   const out = [];
   for (let i = 0; i < count; i++) {
     h = (h * 1103515245 + 12345) >>> 0;
-    out.push(5 + (h % 18));
+    out.push(10 + (h % 28));
   }
   return out;
 }
@@ -61,11 +61,15 @@ function titleLines(raw, maxLen) {
  */
 function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying }) {
   const w = 920;
-  const h = 252;
   const inset = 6;
-  const artSize = 204;
+  const barStripH = 84;
+  const mainH = 216;
+  const h = mainH + barStripH;
+  const barStripY = mainH;
+
+  const artSize = 200;
   const artX = inset;
-  const artY = (h - artSize) / 2;
+  const artY = (mainH - artSize) / 2;
   const gapArtText = 12;
   const textX = artX + artSize + gapArtText;
   const padR = inset;
@@ -78,23 +82,27 @@ function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying }) {
   const lines = titleLines(title, maxTitleChars);
   const a = esc(artist).slice(0, 72);
   const seed = `${title}|${artist}`;
-  const barW = 9;
+  const barW = 10;
   const gap = 4;
-  const vizY = h - 18;
+  const vizBaseline = h - 12;
   const vizLeft = textX;
   const vizMaxW = w - inset - textX;
-  const barCount = Math.min(64, Math.floor((vizMaxW + gap) / (barW + gap)));
-  const bars = visualizerHeights(seed, Math.max(40, barCount));
+  const barCount = Math.min(56, Math.floor((vizMaxW + gap) / (barW + gap)));
+  const bars = visualizerHeights(seed, Math.max(36, barCount));
   const playing = !!isPlaying;
+  const maxBarH = barStripH - 14;
 
   const artRx = 16;
   const cardClip = `<clipPath id="cardClip"><rect x="0" y="0" width="${w}" height="${h}" rx="18"/></clipPath>`;
   const artClip = `<clipPath id="artClip"><rect x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" rx="${artRx}"/></clipPath>`;
+  const barStripClip = `<clipPath id="barStripClip"><rect x="${textX}" y="${barStripY}" width="${w - textX - inset}" height="${barStripH}"/></clipPath>`;
   const dynamicBack =
     artDataUri &&
     `<g clip-path="url(#cardClip)">
-    <image href="${artDataUri}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" filter="url(#artBlur)"/>
+    <image href="${artDataUri}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" opacity="0.48"/>
+    <image href="${artDataUri}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" filter="url(#artBlur)" opacity="0.3"/>
     <rect x="0" y="0" width="${w}" height="${h}" fill="url(#scrim)"/>
+    <rect x="0" y="0" width="${w}" height="${h}" fill="url(#toneTint)"/>
     <rect x="0" y="0" width="${w}" height="${h}" fill="url(#fadeEdge)"/>
   </g>`;
   const artBlock = artDataUri
@@ -104,39 +112,39 @@ function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying }) {
   let x = vizLeft;
   const barEls = [];
   for (let i = 0; i < bars.length && x + barW < vizLeft + vizMaxW; i++) {
-    const bh = bars[i] + 4;
-    const h1 = Math.min(58, bh + 12 + (i % 7));
-    const dur = (0.48 + (i % 8) * 0.05).toFixed(2);
-    const y0 = vizY - bh;
-    const y1 = vizY - h1;
+    const bh = Math.min(maxBarH, bars[i] + 22);
+    const h1 = Math.min(maxBarH, bh + 12 + (i % 10));
+    const dur = (0.45 + (i % 8) * 0.05).toFixed(2);
+    const y0 = vizBaseline - bh;
+    const y1 = vizBaseline - h1;
     if (playing) {
       barEls.push(
-        `<rect x="${x}" y="${y0}" width="${barW}" height="${bh}" rx="2" fill="url(#vizGrad)" opacity="0.94">` +
+        `<rect x="${x}" y="${y0}" width="${barW}" height="${bh}" rx="2.5" fill="url(#vizGrad)" opacity="0.96">` +
           `<animate attributeName="height" values="${bh};${h1};${bh}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>` +
           `<animate attributeName="y" values="${y0};${y1};${y0}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>` +
           `</rect>`
       );
     } else {
-      const bh2 = Math.max(6, Math.round(bh * 0.5));
+      const bh2 = Math.max(10, Math.round(bh * 0.58));
       barEls.push(
-        `<rect x="${x}" y="${vizY - bh2}" width="${barW}" height="${bh2}" rx="2" fill="url(#vizGrad)" opacity="0.58"/>`
+        `<rect x="${x}" y="${vizBaseline - bh2}" width="${barW}" height="${bh2}" rx="2.5" fill="url(#vizGrad)" opacity="0.64"/>`
       );
     }
     x += barW + gap;
   }
 
-  const badgeCY = 36;
+  const badgeCY = 34;
   const showLivePill = bRaw === "now playing" && playing;
   const badgePill = showLivePill
-    ? `<rect x="${badgeX}" y="20" width="${badgeW}" height="30" rx="15" fill="rgba(30,215,96,0.18)" stroke="rgba(30,215,96,0.3)" stroke-width="0.75"/>
+    ? `<rect x="${badgeX}" y="18" width="${badgeW}" height="30" rx="15" fill="rgba(30,215,96,0.2)" stroke="rgba(30,215,96,0.32)" stroke-width="0.75"/>
   <circle cx="${badgeX + 15}" cy="${badgeCY}" r="4" fill="#1ed760"/><text x="${badgeX + 24}" y="${badgeCY + 4}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="12" fill="rgba(240,255,248,0.96)" font-weight="600">${bRaw}</text>`
     : bRaw
       ? `<text x="${w - inset}" y="${badgeCY + 4}" text-anchor="end" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="13" fill="rgba(255,255,255,0.4)">${bRaw}</text>`
       : "";
 
-  const titleY1 = 58;
-  const titleY2 = 94;
-  const artistY = lines.length > 1 ? 128 : 112;
+  const titleY1 = 52;
+  const titleY2 = 88;
+  const artistY = lines.length > 1 ? 118 : 102;
   const titleBlock =
     lines.length === 1
       ? `<text x="${textX}" y="${titleY1}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="27" fill="#f8f8fc" font-weight="700" letter-spacing="-0.03em">${lines[0]}</text>`
@@ -162,6 +170,11 @@ function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying }) {
       <stop offset="22%" stop-color="rgba(0,0,0,0.12)"/>
       <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
     </linearGradient>
+    <linearGradient id="toneTint" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(30,215,96,0.1)"/>
+      <stop offset="42%" stop-color="rgba(90,190,255,0.14)"/>
+      <stop offset="100%" stop-color="rgba(140,90,255,0.1)"/>
+    </linearGradient>
     <linearGradient id="vizGrad" x1="0%" y1="100%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="rgba(255,255,255,0.92)"/>
       <stop offset="40%" stop-color="rgba(180,240,230,0.88)"/>
@@ -169,13 +182,14 @@ function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying }) {
     </linearGradient>
     ${cardClip}
     ${artClip}
+    ${barStripClip}
   </defs>
-  ${dynamicBack || `<rect x="0" y="0" width="${w}" height="${h}" rx="18" fill="url(#bg)"/>`}
+  ${dynamicBack || `<rect x="0" y="0" width="${w}" height="${h}" rx="18" fill="url(#bg)"/><rect x="0" y="0" width="${w}" height="${h}" fill="url(#toneTint)"/><rect x="0" y="0" width="${w}" height="${h}" fill="url(#fadeEdge)"/>`}
   ${artBlock}
   ${titleBlock}
   <text x="${textX}" y="${artistY}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="17" fill="rgba(255,255,255,0.52)">${a}</text>
   ${badgePill}
-  <g>${barEls.join("")}</g>
+  <g clip-path="url(#barStripClip)">${barEls.join("")}</g>
 </svg>`;
 }
 
