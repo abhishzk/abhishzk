@@ -40,97 +40,120 @@ function pickAlbumImageUrl(album) {
   return sorted[0]?.url || imgs[0]?.url || null;
 }
 
+/** Wrap title into 1–2 lines; keeps text in [0, maxLen] char chunks on word boundaries. */
+function titleLines(raw, maxLen) {
+  const s = esc(raw);
+  if (s.length <= maxLen) return [s];
+  let cut = s.lastIndexOf(" ", maxLen);
+  if (cut < maxLen * 0.45) cut = maxLen;
+  const a = s.slice(0, cut).trimEnd();
+  let b = s.slice(cut).trimStart();
+  if (b.length > maxLen) {
+    const cut2 = b.lastIndexOf(" ", maxLen);
+    const c = cut2 >= maxLen * 0.4 ? cut2 : maxLen;
+    b = b.slice(0, c).trimEnd() + "…";
+  }
+  return [a, b].filter(Boolean);
+}
+
 /**
- * Now-playing card: art left, title/artist, gradient bars. Bars animate when isPlaying (SMIL).
+ * Now-playing: large art + bars, tight inset, title never intrudes on badge column.
  */
 function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying }) {
-  const w = 680;
-  const h = 168;
-  const pad = 18;
-  const artSize = 124;
-  const artX = pad;
+  const w = 920;
+  const h = 252;
+  const inset = 6;
+  const artSize = 204;
+  const artX = inset;
   const artY = (h - artSize) / 2;
-  const textX = artX + artSize + 20;
-  const t = esc(title).slice(0, 48);
-  const a = esc(artist).slice(0, 52);
-  const b = esc(badge || "").slice(0, 16);
-  const seed = `${title}|${artist}`;
-  const barW = 6;
-  const gap = 3;
-  const vizY = h - 32;
-  const vizLeft = textX;
-  const vizMaxW = w - textX - pad;
-  const barCount = Math.min(48, Math.floor((vizMaxW + gap) / (barW + gap)));
-  const bars = visualizerHeights(seed, Math.max(32, barCount));
+  const gapArtText = 12;
+  const textX = artX + artSize + gapArtText;
+  const padR = inset;
+  const bRaw = esc(badge || "").slice(0, 18);
+  const badgeW = bRaw ? Math.min(158, 30 + bRaw.length * 7.4) : 0;
+  const badgeX = w - padR - badgeW;
+  const titleColW = badgeX - textX - 14;
 
-  const artClip = `<clipPath id="artClip"><rect x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" rx="14"/></clipPath>`;
+  const maxTitleChars = Math.max(28, Math.floor(titleColW / 13.5));
+  const lines = titleLines(title, maxTitleChars);
+  const a = esc(artist).slice(0, 72);
+  const seed = `${title}|${artist}`;
+  const barW = 9;
+  const gap = 4;
+  const vizY = h - 18;
+  const vizLeft = artX;
+  const vizMaxW = w - 2 * inset;
+  const barCount = Math.min(64, Math.floor((vizMaxW + gap) / (barW + gap)));
+  const bars = visualizerHeights(seed, Math.max(40, barCount));
+  const playing = !!isPlaying;
+
+  const artRx = 16;
+  const artClip = `<clipPath id="artClip"><rect x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" rx="${artRx}"/></clipPath>`;
   const artBlock = artDataUri
-    ? `<g filter="url(#artShadow)"><g clip-path="url(#artClip)"><image href="${artDataUri}" x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" preserveAspectRatio="xMidYMid slice"/></g></g>`
-    : `<rect x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" rx="14" fill="#252530"/><text x="${artX + artSize / 2}" y="${artY + artSize / 2 + 7}" text-anchor="middle" font-size="28" fill="rgba(255,255,255,0.28)">♪</text>`;
+    ? `<g clip-path="url(#artClip)"><image href="${artDataUri}" x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" preserveAspectRatio="xMidYMid slice"/></g>`
+    : `<rect x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" rx="${artRx}" fill="#2a2a32"/><text x="${artX + artSize / 2}" y="${artY + artSize / 2 + 10}" text-anchor="middle" font-size="36" fill="rgba(255,255,255,0.22)">♪</text>`;
 
   let x = vizLeft;
   const barEls = [];
-  const playing = !!isPlaying;
   for (let i = 0; i < bars.length && x + barW < vizLeft + vizMaxW; i++) {
-    const bh = bars[i];
-    const h1 = Math.min(44, bh + 10 + (i % 6));
-    const dur = (0.5 + (i % 8) * 0.05).toFixed(2);
+    const bh = bars[i] + 4;
+    const h1 = Math.min(58, bh + 12 + (i % 7));
+    const dur = (0.48 + (i % 8) * 0.05).toFixed(2);
     const y0 = vizY - bh;
     const y1 = vizY - h1;
     if (playing) {
       barEls.push(
-        `<rect x="${x}" y="${y0}" width="${barW}" height="${bh}" rx="1.5" fill="url(#vizGrad)" opacity="0.92">` +
+        `<rect x="${x}" y="${y0}" width="${barW}" height="${bh}" rx="2" fill="url(#vizGrad)" opacity="0.94">` +
           `<animate attributeName="height" values="${bh};${h1};${bh}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>` +
           `<animate attributeName="y" values="${y0};${y1};${y0}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>` +
           `</rect>`
       );
     } else {
-      const bh2 = Math.max(4, Math.round(bh * 0.55));
+      const bh2 = Math.max(6, Math.round(bh * 0.5));
       barEls.push(
-        `<rect x="${x}" y="${vizY - bh2}" width="${barW}" height="${bh2}" rx="1.5" fill="url(#vizGrad)" opacity="0.55"/>`
+        `<rect x="${x}" y="${vizY - bh2}" width="${barW}" height="${bh2}" rx="2" fill="url(#vizGrad)" opacity="0.58"/>`
       );
     }
     x += barW + gap;
   }
 
-  const badgeW = Math.min(150, 28 + b.length * 7.2);
-  const badgeX = w - pad - badgeW;
-  const showLivePill = b === "now playing" && playing;
+  const badgeCY = 36;
+  const showLivePill = bRaw === "now playing" && playing;
   const badgePill = showLivePill
-    ? `<rect x="${badgeX}" y="22" width="${badgeW}" height="26" rx="13" fill="rgba(30,215,96,0.16)" stroke="rgba(30,215,96,0.28)" stroke-width="0.75"/>
-  <circle cx="${badgeX + 13}" cy="35" r="3.5" fill="#1ed760"/><text x="${badgeX + 21}" y="39" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="11" fill="rgba(240,255,248,0.95)" font-weight="600">${b}</text>`
-    : b
-      ? `<text x="${w - pad}" y="48" text-anchor="end" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="12" fill="rgba(255,255,255,0.38)">${b}</text>`
+    ? `<rect x="${badgeX}" y="20" width="${badgeW}" height="30" rx="15" fill="rgba(30,215,96,0.18)" stroke="rgba(30,215,96,0.3)" stroke-width="0.75"/>
+  <circle cx="${badgeX + 15}" cy="${badgeCY}" r="4" fill="#1ed760"/><text x="${badgeX + 24}" y="${badgeCY + 4}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="12" fill="rgba(240,255,248,0.96)" font-weight="600">${bRaw}</text>`
+    : bRaw
+      ? `<text x="${w - inset}" y="${badgeCY + 4}" text-anchor="end" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="13" fill="rgba(255,255,255,0.4)">${bRaw}</text>`
       : "";
+
+  const titleY1 = 58;
+  const titleY2 = 94;
+  const artistY = lines.length > 1 ? 128 : 112;
+  const titleBlock =
+    lines.length === 1
+      ? `<text x="${textX}" y="${titleY1}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="27" fill="#f8f8fc" font-weight="700" letter-spacing="-0.03em">${lines[0]}</text>`
+      : `<text x="${textX}" y="${titleY1}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="27" fill="#f8f8fc" font-weight="700" letter-spacing="-0.03em">${lines[0]}</text>
+  <text x="${textX}" y="${titleY2}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="27" fill="#f8f8fc" font-weight="700" letter-spacing="-0.03em">${lines[1]}</text>`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="Spotify now playing">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1a1a22"/>
-      <stop offset="45%" stop-color="#12121a"/>
-      <stop offset="100%" stop-color="#0a0a10"/>
+      <stop offset="0%" stop-color="#12121a"/>
+      <stop offset="100%" stop-color="#0b0b10"/>
     </linearGradient>
-    <radialGradient id="bgGlow" cx="22%" cy="28%" r="55%">
-      <stop offset="0%" stop-color="rgba(30,215,96,0.08)"/>
-      <stop offset="55%" stop-color="rgba(30,215,96,0)"/>
-    </radialGradient>
     <linearGradient id="vizGrad" x1="0%" y1="100%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#d4b896"/>
-      <stop offset="40%" stop-color="#5ec4b0"/>
-      <stop offset="72%" stop-color="#4a9fd4"/>
+      <stop offset="35%" stop-color="#5ec4b0"/>
+      <stop offset="70%" stop-color="#4a9fd4"/>
       <stop offset="100%" stop-color="#c9a27a"/>
     </linearGradient>
-    <filter id="artShadow" x="-8%" y="-8%" width="116%" height="116%">
-      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.45"/>
-    </filter>
     ${artClip}
   </defs>
-  <rect x="0" y="0" width="${w}" height="${h}" rx="20" fill="url(#bg)"/>
-  <rect x="0" y="0" width="${w}" height="${h}" rx="20" fill="url(#bgGlow)"/>
+  <rect x="0" y="0" width="${w}" height="${h}" rx="18" fill="url(#bg)"/>
   ${artBlock}
-  <text x="${textX}" y="58" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="23" fill="#f4f4f7" font-weight="680" letter-spacing="-0.02em">${t}</text>
-  <text x="${textX}" y="90" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="16" fill="rgba(255,255,255,0.55)">${a}</text>
+  ${titleBlock}
+  <text x="${textX}" y="${artistY}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="17" fill="rgba(255,255,255,0.52)">${a}</text>
   ${badgePill}
   <g>${barEls.join("")}</g>
 </svg>`;
