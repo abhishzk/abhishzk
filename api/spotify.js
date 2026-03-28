@@ -200,7 +200,10 @@ module.exports = async (req, res) => {
         const isPremium403 =
           (e?.status === 403 || /\b403\b/.test(msg)) &&
           /premium/i.test(msg);
-        if (!isPremium403) throw e;
+        const isScope403 =
+          (e?.status === 403 || /\b403\b/.test(msg)) &&
+          /insufficient.*scope|scope.*insufficient/i.test(msg);
+        if (!isPremium403 && !isScope403) throw e;
       }
     }
 
@@ -227,7 +230,10 @@ module.exports = async (req, res) => {
         const isPremium403 =
           (e?.status === 403 || /\b403\b/.test(msg)) &&
           /premium/i.test(msg);
-        if (!isPremium403) throw e;
+        const isScope403 =
+          (e?.status === 403 || /\b403\b/.test(msg)) &&
+          /insufficient.*scope|scope.*insufficient/i.test(msg);
+        if (!isPremium403 && !isScope403) throw e;
       }
     }
 
@@ -269,6 +275,7 @@ module.exports = async (req, res) => {
     );
   } catch (e) {
     const msg = String(e?.message ?? "");
+    const needsScope = /insufficient.*scope|scope.*insufficient/i.test(msg);
     // Safe logging for debugging (no secrets/tokens).
     console.error("[api/spotify] failed", {
       status: e?.status,
@@ -277,10 +284,12 @@ module.exports = async (req, res) => {
     return sendSvg(
       res,
       svgCard({
-        title: "Spotify",
-        subtitle: "Unable to reach Spotify right now.",
-        right: "offline",
-        accent: "#f97316"
+        title: needsScope ? "Spotify: scope missing" : "Spotify",
+        subtitle: needsScope
+          ? "Request scopes: user-read-currently-playing, user-read-recently-played, user-top-read"
+          : "Unable to reach Spotify right now.",
+        right: needsScope ? "scope" : "offline",
+        accent: needsScope ? "#fbbf24" : "#f97316"
       })
     );
   }
