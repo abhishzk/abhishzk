@@ -81,14 +81,22 @@ function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying }) {
   const barW = 9;
   const gap = 4;
   const vizY = h - 18;
-  const vizLeft = artX;
-  const vizMaxW = w - 2 * inset;
+  const vizLeft = textX;
+  const vizMaxW = w - inset - textX;
   const barCount = Math.min(64, Math.floor((vizMaxW + gap) / (barW + gap)));
   const bars = visualizerHeights(seed, Math.max(40, barCount));
   const playing = !!isPlaying;
 
   const artRx = 16;
+  const cardClip = `<clipPath id="cardClip"><rect x="0" y="0" width="${w}" height="${h}" rx="18"/></clipPath>`;
   const artClip = `<clipPath id="artClip"><rect x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" rx="${artRx}"/></clipPath>`;
+  const dynamicBack =
+    artDataUri &&
+    `<g clip-path="url(#cardClip)">
+    <image href="${artDataUri}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" filter="url(#artBlur)"/>
+    <rect x="0" y="0" width="${w}" height="${h}" fill="url(#scrim)"/>
+    <rect x="0" y="0" width="${w}" height="${h}" fill="url(#fadeEdge)"/>
+  </g>`;
   const artBlock = artDataUri
     ? `<g clip-path="url(#artClip)"><image href="${artDataUri}" x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" preserveAspectRatio="xMidYMid slice"/></g>`
     : `<rect x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" rx="${artRx}" fill="#2a2a32"/><text x="${artX + artSize / 2}" y="${artY + artSize / 2 + 10}" text-anchor="middle" font-size="36" fill="rgba(255,255,255,0.22)">♪</text>`;
@@ -138,19 +146,31 @@ function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying }) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="Spotify now playing">
   <defs>
+    <filter id="artBlur" x="-35%" y="-35%" width="170%" height="170%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="46"/>
+    </filter>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#12121a"/>
       <stop offset="100%" stop-color="#0b0b10"/>
     </linearGradient>
-    <linearGradient id="vizGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#d4b896"/>
-      <stop offset="35%" stop-color="#5ec4b0"/>
-      <stop offset="70%" stop-color="#4a9fd4"/>
-      <stop offset="100%" stop-color="#c9a27a"/>
+    <linearGradient id="scrim" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="rgba(6,6,10,0.72)"/>
+      <stop offset="100%" stop-color="rgba(6,6,10,0.58)"/>
     </linearGradient>
+    <linearGradient id="fadeEdge" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="rgba(0,0,0,0.5)"/>
+      <stop offset="22%" stop-color="rgba(0,0,0,0.12)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+    </linearGradient>
+    <linearGradient id="vizGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.92)"/>
+      <stop offset="40%" stop-color="rgba(180,240,230,0.88)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.75)"/>
+    </linearGradient>
+    ${cardClip}
     ${artClip}
   </defs>
-  <rect x="0" y="0" width="${w}" height="${h}" rx="18" fill="url(#bg)"/>
+  ${dynamicBack || `<rect x="0" y="0" width="${w}" height="${h}" rx="18" fill="url(#bg)"/>`}
   ${artBlock}
   ${titleBlock}
   <text x="${textX}" y="${artistY}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="17" fill="rgba(255,255,255,0.52)">${a}</text>
