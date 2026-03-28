@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://open.spotify.com/user/31kmjb7rnsmfmmguzpnbs5l5jeau" style="text-decoration: none;">
-    <img src="https://abhishzk.vercel.app/api/spotify?v=6" alt="Spotify now playing" width="920" style="border: 0; border-radius: 18px; display: block; margin: 0 auto; max-width: 100%;" />
+    <img src="https://abhishzk.vercel.app/api/spotify?v=7" alt="Spotify now playing" width="920" style="border: 0; border-radius: 18px; display: block; margin: 0 auto; max-width: 100%;" />
   </a>
 </p>
 
