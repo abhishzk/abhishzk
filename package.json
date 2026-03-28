@@ -1,0 +1,9 @@
+{
+  "name": "abhishzk-profile",
+  "private": true,
+  "version": "1.0.0",
+  "description": "GitHub profile assets (Spotify now playing SVG).",
+  "engines": {
+    "node": ">=18"
+  }
+}
