@@ -62,7 +62,7 @@ function titleLines(raw, maxLen) {
 function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying }) {
   const w = 920;
   const inset = 6;
-  const barStripH = 130;
+  const barStripH = 180;
   const mainH = 216;
   const h = mainH + barStripH;
   const barStripY = mainH;
@@ -112,8 +112,8 @@ function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying }) {
   let x = vizLeft;
   const barEls = [];
   for (let i = 0; i < bars.length && x + barW < vizLeft + vizMaxW; i++) {
-    const bh = Math.min(maxBarH, bars[i] + 22);
-    const h1 = Math.min(maxBarH, bh + 12 + (i % 10));
+    const bh = Math.min(maxBarH, Math.round(bars[i] * 2 + 18));
+    const h1 = Math.min(maxBarH, bh + 20 + (i % 10));
     const dur = (0.45 + (i % 8) * 0.05).toFixed(2);
     const y0 = vizBaseline - bh;
     const y1 = vizBaseline - h1;
