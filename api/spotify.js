@@ -375,7 +375,7 @@ module.exports = async (req, res) => {
         if (now?.item?.name && now?.item?.artists?.length) {
           const playing = !!now.is_playing;
           return respondWithTrack(res, now.item, {
-            badge: playing ? "now playing" : "paused",
+            badge: "",
             isPlaying: playing
           });
         }
@@ -390,7 +390,7 @@ module.exports = async (req, res) => {
       const track = recent?.items?.[0]?.track;
       if (track?.name && track?.artists?.length) {
         return respondWithTrack(res, track, {
-          badge: "last played",
+          badge: "",
           isPlaying: false
         });
       }
