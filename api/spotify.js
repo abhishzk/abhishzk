@@ -62,7 +62,7 @@ function titleLines(raw, maxLen) {
 function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying }) {
   const w = 920;
   const inset = 6;
-  const barStripH = 84;
+  const barStripH = 130;
   const mainH = 216;
   const h = mainH + barStripH;
   const barStripY = mainH;
@@ -125,22 +125,17 @@ function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying }) {
           `</rect>`
       );
     } else {
-      const bh2 = Math.max(10, Math.round(bh * 0.58));
       barEls.push(
-        `<rect x="${x}" y="${vizBaseline - bh2}" width="${barW}" height="${bh2}" rx="2.5" fill="url(#vizGrad)" opacity="0.64"/>`
+        `<rect x="${x}" y="${y0}" width="${barW}" height="${bh}" rx="2.5" fill="url(#vizGrad)" opacity="0.96">` +
+          `<animate attributeName="height" values="${bh};${h1};${bh}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>` +
+          `<animate attributeName="y" values="${y0};${y1};${y0}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>` +
+          `</rect>`
       );
     }
     x += barW + gap;
   }
 
-  const badgeCY = 34;
-  const showLivePill = bRaw === "now playing" && playing;
-  const badgePill = showLivePill
-    ? `<rect x="${badgeX}" y="18" width="${badgeW}" height="30" rx="15" fill="rgba(30,215,96,0.2)" stroke="rgba(30,215,96,0.32)" stroke-width="0.75"/>
-  <circle cx="${badgeX + 15}" cy="${badgeCY}" r="4" fill="#1ed760"/><text x="${badgeX + 24}" y="${badgeCY + 4}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="12" fill="rgba(240,255,248,0.96)" font-weight="600">${bRaw}</text>`
-    : bRaw
-      ? `<text x="${w - inset}" y="${badgeCY + 4}" text-anchor="end" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="13" fill="rgba(255,255,255,0.4)">${bRaw}</text>`
-      : "";
+  const badgePill = "";
 
   const titleY1 = 52;
   const titleY2 = 88;
