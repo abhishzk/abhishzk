@@ -316,9 +316,9 @@ module.exports = async (req, res) => {
     // Never use top-tracks for the widget. Old READMEs used ?mode=top — treat like default.
     const mode = rawMode === "top" ? null : rawMode;
 
-    const clientId = process.env.SPOTIFY_CLIENT_ID;
-    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-    const refreshToken = process.env.SPOTIFY_REFRESH_TOKEN;
+    const clientId = process.env.SPOTIFY_CLIENT_ID?.trim();
+    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET?.trim();
+    const refreshToken = process.env.SPOTIFY_REFRESH_TOKEN?.trim();
 
     if (!clientId || !clientSecret || !refreshToken) {
       return sendSvg(
