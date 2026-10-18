@@ -64,16 +64,13 @@ function svgNowPlaying({ title, artist, artDataUri, isPlaying, status }) {
   const a = fitText(artist, colW, 21, 16, 0.5);
   const alb = fitText((status || "").replace(/^Listening now\s+·\s+/, ""), colW, 15, 13, 0.5);
 
-  const pillLabel = playing ? "LISTENING NOW" : "LAST PLAYED";
-  const pillW = 40 + pillLabel.length * 8.4;
-  const pillY = pad;
 
-  const titleY = 98;
-  const artistY = 130;
-  const albumY = 156;
-  const dividerY = 174;
+  const titleY = 76;
+  const artistY = 110;
+  const albumY = 136;
+  const dividerY = 160;
   const baseY = 262;
-  const maxBarH = 76;
+  const maxBarH = 86;
   const minBarH = 14;
   const barW = 8;
   const gap = 4;
@@ -117,24 +114,18 @@ function svgNowPlaying({ title, artist, artDataUri, isPlaying, status }) {
 
   const backdrop = artDataUri
     ? `<g clip-path="url(#cardClip)">
-    <image href="${artDataUri}" x="-40" y="-40" width="${w + 80}" height="${h + 80}" preserveAspectRatio="xMidYMid slice" filter="url(#blurBig)" opacity="0.75"/>
+    <image href="${artDataUri}" x="-40" y="-40" width="${w + 80}" height="${h + 80}" preserveAspectRatio="xMidYMid slice" filter="url(#blurBig)" opacity="0.5"/>
     <rect width="${w}" height="${h}" fill="url(#scrim)"/>
   </g>`
     : `<rect width="${w}" height="${h}" rx="22" fill="url(#bg)"/>`;
 
   const colorField = artDataUri
     ? `<image href="${artDataUri}" x="${textX}" y="${baseY - maxBarH}" width="${colW}" height="${maxBarH}" preserveAspectRatio="xMidYMid slice" filter="url(#vivid)"/>
-    <rect x="${textX}" y="${baseY - maxBarH}" width="${colW}" height="${maxBarH}" fill="url(#brand)" opacity="0.4"/>`
+    <rect x="${textX}" y="${baseY - maxBarH}" width="${colW}" height="${maxBarH}" fill="url(#brand)" opacity="0.18"/>`
     : `<rect x="${textX}" y="${baseY - maxBarH}" width="${colW}" height="${maxBarH}" fill="url(#brand)"/>`;
 
   const barsGroup = `<g mask="url(#barsMask)">${colorField}</g>`;
   const reflection = `<g opacity="0.24" mask="url(#reflectFade)"><g transform="translate(0 ${baseY * 2 + 3}) scale(1 -1)"><g mask="url(#barsMask)">${colorField}</g></g></g>`;
-
-  const pill = `<g>
-    <rect x="${textX}" y="${pillY}" width="${pillW}" height="26" rx="13" fill="${playing ? "rgba(30,215,96,0.16)" : "rgba(255,255,255,0.08)"}" stroke="${playing ? "rgba(30,215,96,0.45)" : "rgba(255,255,255,0.14)"}"/>
-    <circle cx="${textX + 15}" cy="${pillY + 13}" r="4" fill="${playing ? "#1ed760" : "rgba(255,255,255,0.45)"}">${playing ? `<animate attributeName="opacity" values="1;0.3;1" dur="1.6s" repeatCount="indefinite"/><animate attributeName="r" values="4;5.5;4" dur="1.6s" repeatCount="indefinite"/>` : ""}</circle>
-    <text x="${textX + 29}" y="${pillY + 17.5}" font-family="${FONT}" font-size="11.5" font-weight="700" letter-spacing="0.14em" fill="${playing ? "#7ef0a8" : "rgba(255,255,255,0.6)"}">${pillLabel}</text>
-  </g>`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="Now playing">
@@ -148,11 +139,11 @@ function svgNowPlaying({ title, artist, artDataUri, isPlaying, status }) {
     <filter id="vivid" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
       <feGaussianBlur stdDeviation="16" edgeMode="duplicate"/>
       <feColorMatrix type="saturate" values="1.9"/>
-      <feComponentTransfer><feFuncR type="linear" slope="1.35" intercept="0.12"/><feFuncG type="linear" slope="1.35" intercept="0.12"/><feFuncB type="linear" slope="1.35" intercept="0.12"/></feComponentTransfer>
+      <feComponentTransfer><feFuncR type="linear" slope="1.15" intercept="0.04"/><feFuncG type="linear" slope="1.15" intercept="0.04"/><feFuncB type="linear" slope="1.15" intercept="0.04"/></feComponentTransfer>
     </filter>
     <filter id="artShadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000" flood-opacity="0.55"/></filter>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14141c"/><stop offset="1" stop-color="#0a0a10"/></linearGradient>
-    <linearGradient id="scrim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="rgba(6,6,10,0.62)"/><stop offset="1" stop-color="rgba(6,6,10,0.78)"/></linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0c0c11"/><stop offset="1" stop-color="#050507"/></linearGradient>
+    <linearGradient id="scrim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="rgba(4,4,7,0.78)"/><stop offset="1" stop-color="rgba(2,2,4,0.92)"/></linearGradient>
     <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1ed760"/><stop offset="0.5" stop-color="#5ac8ff"/><stop offset="1" stop-color="#a06bff"/></linearGradient>
     <linearGradient id="divider" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="rgba(255,255,255,0.28)"/><stop offset="1" stop-color="rgba(255,255,255,0)"/></linearGradient>
     <linearGradient id="fadeDown" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient>
@@ -165,10 +156,9 @@ function svgNowPlaying({ title, artist, artDataUri, isPlaying, status }) {
   <rect x="0.5" y="0.5" width="${w - 1}" height="${h - 1}" rx="21.5" fill="none" stroke="rgba(255,255,255,0.09)"/>
   <g filter="url(#artShadow)"><g clip-path="url(#artClip)">${art}</g></g>
   <rect x="${artX + 0.5}" y="${artY + 0.5}" width="${artSize - 1}" height="${artSize - 1}" rx="19.5" fill="none" stroke="rgba(255,255,255,0.12)"/>
-  ${pill}
   <text x="${textX}" y="${titleY}" font-family="${FONT}" font-size="${t.size}" font-weight="800" letter-spacing="-0.025em" fill="#fafafe">${t.text}</text>
-  <text x="${textX}" y="${artistY}" font-family="${FONT}" font-size="${a.size}" font-weight="600" fill="rgba(255,255,255,0.78)">${a.text}</text>
-  ${alb.text ? `<text x="${textX}" y="${albumY}" font-family="${FONT}" font-size="${alb.size}" fill="rgba(255,255,255,0.45)">${alb.text}</text>` : ""}
+  <text x="${textX}" y="${artistY}" font-family="${FONT}" font-size="${a.size}" font-weight="600" fill="rgba(255,255,255,0.74)">${a.text}</text>
+  ${alb.text ? `<text x="${textX}" y="${albumY}" font-family="${FONT}" font-size="${alb.size}" fill="rgba(255,255,255,0.4)">${alb.text}</text>` : ""}
   <rect x="${textX}" y="${dividerY}" width="${colW}" height="1.5" rx="0.75" fill="url(#divider)"/>
   <g opacity="${playing ? 1 : 0.6}">${barsGroup}</g>
   ${reflection}
