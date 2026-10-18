@@ -33,13 +33,6 @@ async function fetchImageAsDataUri(imageUrl) {
   }
 }
 
-function pickAlbumImageUrl(album) {
-  const imgs = album?.images;
-  if (!Array.isArray(imgs) || !imgs.length) return null;
-  const sorted = [...imgs].sort((a, b) => (b.width || 0) - (a.width || 0));
-  return sorted[0]?.url || imgs[0]?.url || null;
-}
-
 /** Wrap title into 1–2 lines; keeps text in [0, maxLen] char chunks on word boundaries. */
 function titleLines(raw, maxLen) {
   const s = esc(raw);
@@ -221,86 +214,42 @@ function sendSvg(res, svg) {
   res.end(svg);
 }
 
-function isInsufficientScope(err) {
-  const m = String(err?.message ?? err?.body ?? "");
-  return /insufficient client scope|insufficient_scope/i.test(m) || /403.*scope/i.test(m);
-}
+const LASTFM_PLACEHOLDER = "2a96cbd8b46e442fc41c2b86b821562f";
 
-function isPremium403(err) {
-  const msg = String(err?.message ?? "");
-  return (err?.status === 403 || /\b403\b/.test(msg)) && /premium/i.test(msg);
-}
-
-async function getAccessToken({ clientId, clientSecret, refreshToken }) {
-  const basic = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-  const body = new URLSearchParams({
-    grant_type: "refresh_token",
-    refresh_token: refreshToken
-  });
-
-  const r = await fetch("https://accounts.spotify.com/api/token", {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${basic}`,
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body
-  });
-
-  const text = await r.text();
-  if (!r.ok) {
-    throw new Error(`Spotify token error ${r.status}: ${text}`);
+function pickLastfmImageUrl(images) {
+  if (!Array.isArray(images)) return null;
+  const order = ["extralarge", "large", "medium", "small"];
+  for (const size of order) {
+    const url = images.find((i) => i.size === size)?.["#text"];
+    if (url && !url.includes(LASTFM_PLACEHOLDER)) return url;
   }
+  return null;
+}
+
+async function getLatestTrack({ apiKey, user }) {
+  const qs = new URLSearchParams({
+    method: "user.getrecenttracks",
+    user,
+    api_key: apiKey,
+    limit: "1",
+    format: "json"
+  });
+  const r = await fetch(`https://ws.audioscrobbler.com/2.0/?${qs}`, {
+    signal: AbortSignal.timeout(8000)
+  });
+  const text = await r.text();
+  if (!r.ok) throw new Error(`Last.fm error ${r.status}: ${text.slice(0, 200)}`);
   const json = JSON.parse(text);
-  return json.access_token;
-}
-
-async function spotifyJson(accessToken, path) {
-  const r = await fetch(`https://api.spotify.com/v1/${path}`, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  });
-  const text = await r.text();
-  if (r.status === 204) return { status: 204 };
-  if (!r.ok) {
-    let extracted = "";
-    try {
-      const parsed = JSON.parse(text);
-      extracted = parsed?.error?.message ? String(parsed.error.message) : "";
-    } catch {
-      // ignore
-    }
-
-    const err = new Error(`Spotify API error ${r.status}: ${extracted || text}`);
-    err.status = r.status;
-    err.body = text;
-    throw err;
-  }
-  return JSON.parse(text);
-}
-
-async function spotifyProbe(accessToken, path) {
-  try {
-    await spotifyJson(accessToken, path);
-    return "ok";
-  } catch (e) {
-    return `${e?.status || "err"} ${String(e?.message || "unknown").slice(0, 90)}`;
-  }
-}
-
-async function respondWithTrack(res, track, { badge, isPlaying }) {
-  const artists = track.artists.map((x) => x.name).join(", ");
-  const artUrl = pickAlbumImageUrl(track.album);
-  const artDataUri = await fetchImageAsDataUri(artUrl);
-  return sendSvg(
-    res,
-    svgNowPlaying({
-      title: track.name,
-      artist: artists,
-      artDataUri,
-      badge,
-      isPlaying: !!isPlaying
-    })
-  );
+  if (json.error) throw new Error(`Last.fm error ${json.error}: ${json.message}`);
+  const t = json?.recenttracks?.track;
+  const track = Array.isArray(t) ? t[0] : t;
+  if (!track?.name) return null;
+  return {
+    title: track.name,
+    artist: track.artist?.["#text"] || track.artist?.name || "",
+    artUrl: pickLastfmImageUrl(track.image),
+    isPlaying: track["@attr"]?.nowplaying === "true"
+  };
 }
 
 module.exports = async (req, res) => {
@@ -311,157 +260,56 @@ module.exports = async (req, res) => {
       return res.end("Method Not Allowed");
     }
 
-    const url = new URL(req.url || "/", "http://localhost");
-    const rawMode = url.searchParams.get("mode");
-    // Never use top-tracks for the widget. Old READMEs used ?mode=top — treat like default.
-    const mode = rawMode === "top" ? null : rawMode;
+    const apiKey = process.env.LASTFM_API_KEY?.trim();
+    const user = process.env.LASTFM_USER?.trim();
 
-    const clientId = process.env.SPOTIFY_CLIENT_ID?.trim();
-    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET?.trim();
-    const refreshToken = process.env.SPOTIFY_REFRESH_TOKEN?.trim();
-
-    if (!clientId || !clientSecret || !refreshToken) {
+    if (!apiKey || !user) {
       return sendSvg(
         res,
         svgCard({
-          title: "Spotify: setup needed",
-          subtitle: "Set SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET / SPOTIFY_REFRESH_TOKEN in Vercel env.",
+          title: "Now playing: setup needed",
+          subtitle: "Set LASTFM_API_KEY / LASTFM_USER in Vercel env.",
           right: "env missing",
           accent: "#ef4444"
         })
       );
     }
 
-    const accessToken = await getAccessToken({ clientId, clientSecret, refreshToken });
-
-    let me;
-    try {
-      me = await spotifyJson(accessToken, "me");
-    } catch {
-      me = null;
-    }
-    const product = typeof me?.product === "string" ? me.product : "unknown";
-    if (mode === "me") {
+    const track = await getLatestTrack({ apiKey, user });
+    if (!track) {
       return sendSvg(
         res,
-        svgCard({
-          title: "Spotify token status",
-          subtitle: `Account product: ${product}`,
-          right: "debug",
-          accent: product === "premium" ? "#22c55e" : "#fbbf24"
-        })
-      );
-    }
-
-    if (mode === "diag") {
-      const a = await spotifyProbe(accessToken, "me/player/currently-playing");
-      const b = await spotifyProbe(accessToken, "me/player/recently-played?limit=1");
-      return sendSvg(
-        res,
-        svgCard({
-          title: "Spotify diagnostics",
-          subtitle: `current:${a} | recent:${b}`,
-          right: "diag",
-          accent: "#38bdf8"
-        })
-      );
-    }
-
-    let sawInsufficientScope = false;
-
-    if (mode !== "recent") {
-      try {
-        const now = await spotifyJson(accessToken, "me/player/currently-playing");
-        if (now?.item?.name && now?.item?.artists?.length) {
-          const playing = !!now.is_playing;
-          return respondWithTrack(res, now.item, {
-            badge: "",
-            isPlaying: playing
-          });
-        }
-      } catch (e) {
-        if (isInsufficientScope(e)) sawInsufficientScope = true;
-        else if (!isPremium403(e)) throw e;
-      }
-    }
-
-    try {
-      const recent = await spotifyJson(accessToken, "me/player/recently-played?limit=1");
-      const track = recent?.items?.[0]?.track;
-      if (track?.name && track?.artists?.length) {
-        return respondWithTrack(res, track, {
+        svgNowPlaying({
+          title: "Nothing playing",
+          artist: "Play something on Spotify, or check back in a minute",
+          artDataUri: null,
           badge: "",
           isPlaying: false
-        });
-      }
-    } catch (e) {
-      if (isInsufficientScope(e)) sawInsufficientScope = true;
-      else if (!isPremium403(e)) throw e;
-    }
-
-    if (sawInsufficientScope) {
-      return sendSvg(
-        res,
-        svgCard({
-          title: "Spotify: reconnect needed",
-          subtitle:
-            "Re-authorize with scopes: user-read-currently-playing user-read-recently-played user-read-playback-state",
-          right: "scope",
-          accent: "#f97316"
         })
       );
     }
 
+    const artDataUri = await fetchImageAsDataUri(track.artUrl);
     return sendSvg(
       res,
       svgNowPlaying({
-        title: "Nothing playing",
-        artist: "Play something on Spotify — or check back in a minute",
-        artDataUri: null,
+        title: track.title,
+        artist: track.artist,
+        artDataUri,
         badge: "",
-        isPlaying: false
+        isPlaying: track.isPlaying
       })
     );
   } catch (e) {
     const msg = String(e?.message ?? "");
-    const isPremium = /premium/i.test(msg);
-    const isScope = isInsufficientScope(e);
-    console.error("[api/spotify] failed", {
-      status: e?.status,
-      message: msg.slice(0, 500)
-    });
-    if (isScope) {
-      return sendSvg(
-        res,
-        svgCard({
-          title: "Spotify: reconnect needed",
-          subtitle:
-            "Re-authorize with scopes: user-read-currently-playing user-read-recently-played user-read-playback-state",
-          right: "scope",
-          accent: "#f97316"
-        })
-      );
-    }
-    if (/invalid_grant/i.test(msg)) {
-      return sendSvg(
-        res,
-        svgCard({
-          title: "Spotify: reconnect needed",
-          subtitle: "Refresh token expired or revoked. Generate a new SPOTIFY_REFRESH_TOKEN.",
-          right: "token",
-          accent: "#f97316"
-        })
-      );
-    }
+    console.error("[api/spotify] failed", { message: msg.slice(0, 500) });
     return sendSvg(
       res,
       svgCard({
-        title: isPremium ? "Spotify: Premium required" : "Spotify: error",
-        subtitle: isPremium
-          ? "Your Spotify account needs Premium for these endpoints."
-          : e?.message || "Unknown error",
-        right: isPremium ? "upgrade" : "error",
-        accent: isPremium ? "#fbbf24" : "#f97316"
+        title: "Now playing: error",
+        subtitle: msg || "Unknown error",
+        right: "error",
+        accent: "#f97316"
       })
     );
   }
