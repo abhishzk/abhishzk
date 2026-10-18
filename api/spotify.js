@@ -254,28 +254,13 @@ async function getLatestTrack({ apiKey, user }) {
     artist: track.artist?.["#text"] || track.artist?.name || "",
     album: track.album?.["#text"] || "",
     artUrl: pickLastfmImageUrl(track.image),
-    isPlaying: track["@attr"]?.nowplaying === "true",
-    playedAt: track.date?.uts ? Number(track.date.uts) * 1000 : null
+    isPlaying: track["@attr"]?.nowplaying === "true"
   };
 }
 
-function timeAgo(ms) {
-  const mins = Math.max(0, Math.round((Date.now() - ms) / 60000));
-  if (mins < 2) return "just now";
-  if (mins < 60) return `${mins} minutes ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
-  const days = Math.round(hrs / 24);
-  return `${days} day${days === 1 ? "" : "s"} ago`;
-}
-
 function statusText(track) {
-  const when = track.isPlaying
-    ? "Listening now"
-    : track.playedAt
-      ? `Last played ${timeAgo(track.playedAt)}`
-      : "Last played";
-  return track.album ? `${when}  \u00b7  ${track.album}` : when;
+  if (track.isPlaying) return track.album ? `Listening now  \u00b7  ${track.album}` : "Listening now";
+  return track.album;
 }
 
 module.exports = async (req, res) => {
