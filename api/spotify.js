@@ -442,6 +442,17 @@ module.exports = async (req, res) => {
         })
       );
     }
+    if (/invalid_grant/i.test(msg)) {
+      return sendSvg(
+        res,
+        svgCard({
+          title: "Spotify: reconnect needed",
+          subtitle: "Refresh token expired or revoked. Generate a new SPOTIFY_REFRESH_TOKEN.",
+          right: "token",
+          accent: "#f97316"
+        })
+      );
+    }
     return sendSvg(
       res,
       svgCard({
