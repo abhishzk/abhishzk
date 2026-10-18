@@ -33,156 +33,145 @@ async function fetchImageAsDataUri(imageUrl) {
   }
 }
 
-/** Wrap title into 1–2 lines; keeps text in [0, maxLen] char chunks on word boundaries. */
-function titleLines(raw, maxLen) {
-  const s = esc(raw);
-  if (s.length <= maxLen) return [s];
-  let cut = s.lastIndexOf(" ", maxLen);
-  if (cut < maxLen * 0.45) cut = maxLen;
-  const a = s.slice(0, cut).trimEnd();
-  let b = s.slice(cut).trimStart();
-  if (b.length > maxLen) {
-    const cut2 = b.lastIndexOf(" ", maxLen);
-    const c = cut2 >= maxLen * 0.4 ? cut2 : maxLen;
-    b = b.slice(0, c).trimEnd() + "…";
-  }
-  return [a, b].filter(Boolean);
+const FONT = "ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial";
+
+/** Shrinks the font before truncating so long titles stay on one line. */
+function fitText(raw, maxWidth, maxSize, minSize, charW) {
+  const s = String(raw ?? "");
+  let size = maxSize;
+  while (size > minSize && s.length * size * charW > maxWidth) size -= 1;
+  const maxChars = Math.floor(maxWidth / (size * charW));
+  const text = s.length > maxChars ? s.slice(0, Math.max(1, maxChars - 1)).trimEnd() + "…" : s;
+  return { text: esc(text), size };
 }
 
 /**
- * Now-playing: large art + bars, tight inset, title never intrudes on badge column.
+ * Now playing card: art on the left, text and an art-tinted equalizer on the right.
+ * Bars are masks over a blurred copy of the cover, so each track gets its own colors.
  */
-function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying, status }) {
+function svgNowPlaying({ title, artist, artDataUri, isPlaying, status }) {
   const w = 920;
-  const inset = 6;
-  const barStripH = 180;
-  const mainH = 216;
-  const h = mainH + barStripH;
-  const barStripY = mainH;
-
-  const artSize = 200;
-  const artX = inset;
-  const artY = (mainH - artSize) / 2;
-  const gapArtText = 12;
-  const textX = artX + artSize + gapArtText;
-  const padR = inset;
-  const bRaw = esc(badge || "").slice(0, 18);
-  const badgeW = bRaw ? Math.min(158, 30 + bRaw.length * 7.4) : 0;
-  const badgeX = w - padR - badgeW;
-  const titleColW = badgeX - textX - 14;
-
-  const maxTitleChars = Math.max(28, Math.floor(titleColW / 13.5));
-  const lines = titleLines(title, maxTitleChars);
-  const a = esc(artist).slice(0, 72);
-  const seed = `${title}|${artist}`;
-  const barW = 10;
-  const gap = 4;
-  const vizBaseline = h - 12;
-  const vizLeft = textX;
-  const vizMaxW = w - inset - textX;
-  const barCount = Math.min(56, Math.floor((vizMaxW + gap) / (barW + gap)));
-  const bars = visualizerHeights(seed, Math.max(36, barCount));
+  const h = 300;
+  const pad = 28;
+  const artSize = h - pad * 2;
+  const artX = pad;
+  const artY = pad;
+  const textX = artX + artSize + pad;
+  const colW = w - pad - textX;
   const playing = !!isPlaying;
-  const maxBarH = barStripH - 14;
 
-  const artRx = 16;
-  const cardClip = `<clipPath id="cardClip"><rect x="0" y="0" width="${w}" height="${h}" rx="18"/></clipPath>`;
-  const artClip = `<clipPath id="artClip"><rect x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" rx="${artRx}"/></clipPath>`;
-  const barStripClip = `<clipPath id="barStripClip"><rect x="${textX}" y="${barStripY}" width="${w - textX - inset}" height="${barStripH}"/></clipPath>`;
-  const dynamicBack =
-    artDataUri &&
-    `<g clip-path="url(#cardClip)">
-    <image href="${artDataUri}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" opacity="0.48"/>
-    <image href="${artDataUri}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" filter="url(#artBlur)" opacity="0.3"/>
-    <rect x="0" y="0" width="${w}" height="${h}" fill="url(#scrim)"/>
-    <rect x="0" y="0" width="${w}" height="${h}" fill="url(#toneTint)"/>
-    <rect x="0" y="0" width="${w}" height="${h}" fill="url(#fadeEdge)"/>
-  </g>`;
-  const artBlock = artDataUri
-    ? `<g clip-path="url(#artClip)"><image href="${artDataUri}" x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" preserveAspectRatio="xMidYMid slice"/></g>`
-    : `<rect x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" rx="${artRx}" fill="#2a2a32"/><text x="${artX + artSize / 2}" y="${artY + artSize / 2 + 10}" text-anchor="middle" font-size="36" fill="rgba(255,255,255,0.22)">♪</text>`;
+  const t = fitText(title, colW, 36, 24, 0.56);
+  const a = fitText(artist, colW, 21, 16, 0.5);
+  const alb = fitText((status || "").replace(/^Listening now\s+·\s+/, ""), colW, 15, 13, 0.5);
 
-  let x = vizLeft;
-  const barEls = [];
-  for (let i = 0; i < bars.length && x + barW < vizLeft + vizMaxW; i++) {
-    const bh = Math.min(maxBarH, Math.round(bars[i] * 2.9 + 41));
-    const h1 = Math.min(maxBarH, bh + 24 + (i % 10));
-    const dur = (0.45 + (i % 8) * 0.05).toFixed(2);
-    const y0 = vizBaseline - bh;
-    const y1 = vizBaseline - h1;
+  const pillLabel = playing ? "LISTENING NOW" : "LAST PLAYED";
+  const pillW = 40 + pillLabel.length * 8.4;
+  const pillY = pad;
+
+  const titleY = 98;
+  const artistY = 130;
+  const albumY = 156;
+  const dividerY = 174;
+  const baseY = 262;
+  const maxBarH = 76;
+  const minBarH = 14;
+  const barW = 8;
+  const gap = 4;
+  const count = Math.floor((colW + gap) / (barW + gap));
+
+  const seed = `${title}|${artist}`;
+  const hA = visualizerHeights(seed, count);
+  const hB = visualizerHeights(seed + "b", count);
+  const hC = visualizerHeights(seed + "c", count);
+  const norm = (v) => (v - 10) / 27;
+  const barH = (v, i, phase) => {
+    const env = 0.5 + 0.5 * Math.sin(i * 0.42 + phase);
+    return Math.round(minBarH + (maxBarH - minBarH) * (0.4 * norm(v) + 0.6 * env));
+  };
+
+  const bars = [];
+  for (let i = 0; i < count; i++) {
+    const x = textX + i * (barW + gap);
+    const h0 = barH(hA[i], i, 0);
     if (playing) {
-      barEls.push(
-        `<rect x="${x}" y="${y0}" width="${barW}" height="${bh}" rx="2.5" fill="url(#vizGrad)" opacity="0.96">` +
-          `<animate attributeName="height" values="${bh};${h1};${bh}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>` +
-          `<animate attributeName="y" values="${y0};${y1};${y0}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>` +
-          `</rect>`
+      const h1 = barH(hB[i], i, 2.1);
+      const h2 = barH(hC[i], i, 4.2);
+      const dur = (1.1 + (i % 7) * 0.13).toFixed(2);
+      const begin = (-(i % 5) * 0.21).toFixed(2);
+      const hs = `${h0};${h1};${h2};${h0}`;
+      const ys = `${baseY - h0};${baseY - h1};${baseY - h2};${baseY - h0}`;
+      const common = `dur="${dur}s" begin="${begin}s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.33;0.66;1" keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1"`;
+      bars.push(
+        `<rect x="${x}" y="${baseY - h0}" width="${barW}" height="${h0}" rx="4" fill="#fff">` +
+          `<animate attributeName="height" values="${hs}" ${common}/>` +
+          `<animate attributeName="y" values="${ys}" ${common}/></rect>`
       );
     } else {
-      barEls.push(
-        `<rect x="${x}" y="${y0}" width="${barW}" height="${bh}" rx="2.5" fill="url(#vizGrad)" opacity="0.96">` +
-          `<animate attributeName="height" values="${bh};${h1};${bh}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>` +
-          `<animate attributeName="y" values="${y0};${y1};${y0}" dur="${dur}s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" keyTimes="0;0.5;1"/>` +
-          `</rect>`
-      );
+      bars.push(`<rect x="${x}" y="${baseY - h0}" width="${barW}" height="${h0}" rx="4" fill="#fff"/>`);
     }
-    x += barW + gap;
   }
 
-  const badgePill = "";
+  const art = artDataUri
+    ? `<image href="${artDataUri}" x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" preserveAspectRatio="xMidYMid slice"/>`
+    : `<rect x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" fill="#23232c"/><text x="${artX + artSize / 2}" y="${artY + artSize / 2 + 16}" text-anchor="middle" font-size="52" fill="rgba(255,255,255,0.22)">♪</text>`;
 
-  const titleY1 = 52;
-  const titleY2 = 88;
-  const artistY = lines.length > 1 ? 118 : 102;
-  const titleBlock =
-    lines.length === 1
-      ? `<text x="${textX}" y="${titleY1}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="27" fill="#f8f8fc" font-weight="700" letter-spacing="-0.03em">${lines[0]}</text>`
-      : `<text x="${textX}" y="${titleY1}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="27" fill="#f8f8fc" font-weight="700" letter-spacing="-0.03em">${lines[0]}</text>
-  <text x="${textX}" y="${titleY2}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="27" fill="#f8f8fc" font-weight="700" letter-spacing="-0.03em">${lines[1]}</text>`;
+  const backdrop = artDataUri
+    ? `<g clip-path="url(#cardClip)">
+    <image href="${artDataUri}" x="-40" y="-40" width="${w + 80}" height="${h + 80}" preserveAspectRatio="xMidYMid slice" filter="url(#blurBig)" opacity="0.75"/>
+    <rect width="${w}" height="${h}" fill="url(#scrim)"/>
+  </g>`
+    : `<rect width="${w}" height="${h}" rx="22" fill="url(#bg)"/>`;
 
-  const statusLine = status
-    ? `<text x="${textX}" y="${artistY + 30}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="14" fill="${playing ? "#7ee2a8" : "rgba(255,255,255,0.4)"}">${esc(status).slice(0, 90)}</text>`
-    : "";
+  const colorField = artDataUri
+    ? `<image href="${artDataUri}" x="${textX}" y="${baseY - maxBarH}" width="${colW}" height="${maxBarH}" preserveAspectRatio="xMidYMid slice" filter="url(#vivid)"/>
+    <rect x="${textX}" y="${baseY - maxBarH}" width="${colW}" height="${maxBarH}" fill="url(#brand)" opacity="0.4"/>`
+    : `<rect x="${textX}" y="${baseY - maxBarH}" width="${colW}" height="${maxBarH}" fill="url(#brand)"/>`;
+
+  const barsGroup = `<g mask="url(#barsMask)">${colorField}</g>`;
+  const reflection = `<g opacity="0.24" mask="url(#reflectFade)"><g transform="translate(0 ${baseY * 2 + 3}) scale(1 -1)"><g mask="url(#barsMask)">${colorField}</g></g></g>`;
+
+  const pill = `<g>
+    <rect x="${textX}" y="${pillY}" width="${pillW}" height="26" rx="13" fill="${playing ? "rgba(30,215,96,0.16)" : "rgba(255,255,255,0.08)"}" stroke="${playing ? "rgba(30,215,96,0.45)" : "rgba(255,255,255,0.14)"}"/>
+    <circle cx="${textX + 15}" cy="${pillY + 13}" r="4" fill="${playing ? "#1ed760" : "rgba(255,255,255,0.45)"}">${playing ? `<animate attributeName="opacity" values="1;0.3;1" dur="1.6s" repeatCount="indefinite"/><animate attributeName="r" values="4;5.5;4" dur="1.6s" repeatCount="indefinite"/>` : ""}</circle>
+    <text x="${textX + 29}" y="${pillY + 17.5}" font-family="${FONT}" font-size="11.5" font-weight="700" letter-spacing="0.14em" fill="${playing ? "#7ef0a8" : "rgba(255,255,255,0.6)"}">${pillLabel}</text>
+  </g>`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="Now playing">
   <defs>
-    <filter id="artBlur" x="-35%" y="-35%" width="170%" height="170%" color-interpolation-filters="sRGB">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="46"/>
+    <clipPath id="cardClip"><rect width="${w}" height="${h}" rx="22"/></clipPath>
+    <clipPath id="artClip"><rect x="${artX}" y="${artY}" width="${artSize}" height="${artSize}" rx="20"/></clipPath>
+    <filter id="blurBig" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="38"/>
+      <feColorMatrix type="saturate" values="1.3"/>
     </filter>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#12121a"/>
-      <stop offset="100%" stop-color="#0b0b10"/>
-    </linearGradient>
-    <linearGradient id="scrim" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="rgba(6,6,10,0.72)"/>
-      <stop offset="100%" stop-color="rgba(6,6,10,0.58)"/>
-    </linearGradient>
-    <linearGradient id="fadeEdge" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="rgba(0,0,0,0.5)"/>
-      <stop offset="22%" stop-color="rgba(0,0,0,0.12)"/>
-      <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
-    </linearGradient>
-    <linearGradient id="toneTint" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="rgba(30,215,96,0.1)"/>
-      <stop offset="42%" stop-color="rgba(90,190,255,0.14)"/>
-      <stop offset="100%" stop-color="rgba(140,90,255,0.1)"/>
-    </linearGradient>
-    <linearGradient id="vizGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="rgba(255,255,255,0.92)"/>
-      <stop offset="40%" stop-color="rgba(180,240,230,0.88)"/>
-      <stop offset="100%" stop-color="rgba(255,255,255,0.75)"/>
-    </linearGradient>
-    ${cardClip}
-    ${artClip}
-    ${barStripClip}
+    <filter id="vivid" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="16" edgeMode="duplicate"/>
+      <feColorMatrix type="saturate" values="1.9"/>
+      <feComponentTransfer><feFuncR type="linear" slope="1.35" intercept="0.12"/><feFuncG type="linear" slope="1.35" intercept="0.12"/><feFuncB type="linear" slope="1.35" intercept="0.12"/></feComponentTransfer>
+    </filter>
+    <filter id="artShadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000" flood-opacity="0.55"/></filter>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14141c"/><stop offset="1" stop-color="#0a0a10"/></linearGradient>
+    <linearGradient id="scrim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="rgba(6,6,10,0.62)"/><stop offset="1" stop-color="rgba(6,6,10,0.78)"/></linearGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1ed760"/><stop offset="0.5" stop-color="#5ac8ff"/><stop offset="1" stop-color="#a06bff"/></linearGradient>
+    <linearGradient id="divider" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="rgba(255,255,255,0.28)"/><stop offset="1" stop-color="rgba(255,255,255,0)"/></linearGradient>
+    <linearGradient id="fadeDown" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient>
+    <mask id="barsMask" maskUnits="userSpaceOnUse" x="0" y="0" width="${w}" height="${h}"><g>${bars.join("")}</g></mask>
+    <mask id="reflectFade" maskUnits="userSpaceOnUse" x="0" y="${baseY}" width="${w}" height="${h - baseY}">
+      <rect x="0" y="${baseY}" width="${w}" height="${h - baseY}" fill="url(#fadeDown)"/>
+    </mask>
   </defs>
-  ${dynamicBack || `<rect x="0" y="0" width="${w}" height="${h}" rx="18" fill="url(#bg)"/><rect x="0" y="0" width="${w}" height="${h}" fill="url(#toneTint)"/><rect x="0" y="0" width="${w}" height="${h}" fill="url(#fadeEdge)"/>`}
-  ${artBlock}
-  ${titleBlock}
-  <text x="${textX}" y="${artistY}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="17" fill="rgba(255,255,255,0.52)">${a}</text>
-  ${statusLine}
-  ${badgePill}
-  <g clip-path="url(#barStripClip)">${barEls.join("")}</g>
+  ${backdrop}
+  <rect x="0.5" y="0.5" width="${w - 1}" height="${h - 1}" rx="21.5" fill="none" stroke="rgba(255,255,255,0.09)"/>
+  <g filter="url(#artShadow)"><g clip-path="url(#artClip)">${art}</g></g>
+  <rect x="${artX + 0.5}" y="${artY + 0.5}" width="${artSize - 1}" height="${artSize - 1}" rx="19.5" fill="none" stroke="rgba(255,255,255,0.12)"/>
+  ${pill}
+  <text x="${textX}" y="${titleY}" font-family="${FONT}" font-size="${t.size}" font-weight="800" letter-spacing="-0.025em" fill="#fafafe">${t.text}</text>
+  <text x="${textX}" y="${artistY}" font-family="${FONT}" font-size="${a.size}" font-weight="600" fill="rgba(255,255,255,0.78)">${a.text}</text>
+  ${alb.text ? `<text x="${textX}" y="${albumY}" font-family="${FONT}" font-size="${alb.size}" fill="rgba(255,255,255,0.45)">${alb.text}</text>` : ""}
+  <rect x="${textX}" y="${dividerY}" width="${colW}" height="1.5" rx="0.75" fill="url(#divider)"/>
+  <g opacity="${playing ? 1 : 0.6}">${barsGroup}</g>
+  ${reflection}
 </svg>`;
 }
 
@@ -294,7 +283,6 @@ module.exports = async (req, res) => {
           title: "Nothing playing",
           artist: "Play something on Spotify, or check back in a minute",
           artDataUri: null,
-          badge: "",
           isPlaying: false
         })
       );
@@ -307,7 +295,6 @@ module.exports = async (req, res) => {
         title: track.title,
         artist: track.artist,
         artDataUri,
-        badge: "",
         isPlaying: track.isPlaying,
         status: statusText(track)
       })
