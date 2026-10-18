@@ -105,8 +105,8 @@ function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying, status }) 
   let x = vizLeft;
   const barEls = [];
   for (let i = 0; i < bars.length && x + barW < vizLeft + vizMaxW; i++) {
-    const bh = Math.min(maxBarH, Math.round(bars[i] * 2 + 18));
-    const h1 = Math.min(maxBarH, bh + 20 + (i % 10));
+    const bh = Math.min(maxBarH, Math.round(bars[i] * 2.9 + 41));
+    const h1 = Math.min(maxBarH, bh + 24 + (i % 10));
     const dur = (0.45 + (i % 8) * 0.05).toFixed(2);
     const y0 = vizBaseline - bh;
     const y1 = vizBaseline - h1;
