@@ -52,7 +52,7 @@ function titleLines(raw, maxLen) {
 /**
  * Now-playing: large art + bars, tight inset, title never intrudes on badge column.
  */
-function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying }) {
+function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying, status }) {
   const w = 920;
   const inset = 6;
   const barStripH = 180;
@@ -139,8 +139,12 @@ function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying }) {
       : `<text x="${textX}" y="${titleY1}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="27" fill="#f8f8fc" font-weight="700" letter-spacing="-0.03em">${lines[0]}</text>
   <text x="${textX}" y="${titleY2}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="27" fill="#f8f8fc" font-weight="700" letter-spacing="-0.03em">${lines[1]}</text>`;
 
+  const statusLine = status
+    ? `<text x="${textX}" y="${artistY + 30}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="14" fill="${playing ? "#7ee2a8" : "rgba(255,255,255,0.4)"}">${esc(status).slice(0, 90)}</text>`
+    : "";
+
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="Spotify now playing">
+<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="Now playing">
   <defs>
     <filter id="artBlur" x="-35%" y="-35%" width="170%" height="170%" color-interpolation-filters="sRGB">
       <feGaussianBlur in="SourceGraphic" stdDeviation="46"/>
@@ -176,6 +180,7 @@ function svgNowPlaying({ title, artist, artDataUri, badge, isPlaying }) {
   ${artBlock}
   ${titleBlock}
   <text x="${textX}" y="${artistY}" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial" font-size="17" fill="rgba(255,255,255,0.52)">${a}</text>
+  ${statusLine}
   ${badgePill}
   <g clip-path="url(#barStripClip)">${barEls.join("")}</g>
 </svg>`;
@@ -247,9 +252,30 @@ async function getLatestTrack({ apiKey, user }) {
   return {
     title: track.name,
     artist: track.artist?.["#text"] || track.artist?.name || "",
+    album: track.album?.["#text"] || "",
     artUrl: pickLastfmImageUrl(track.image),
-    isPlaying: track["@attr"]?.nowplaying === "true"
+    isPlaying: track["@attr"]?.nowplaying === "true",
+    playedAt: track.date?.uts ? Number(track.date.uts) * 1000 : null
   };
+}
+
+function timeAgo(ms) {
+  const mins = Math.max(0, Math.round((Date.now() - ms) / 60000));
+  if (mins < 2) return "just now";
+  if (mins < 60) return `${mins} minutes ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
+  const days = Math.round(hrs / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
+function statusText(track) {
+  const when = track.isPlaying
+    ? "Listening now"
+    : track.playedAt
+      ? `Last played ${timeAgo(track.playedAt)}`
+      : "Last played";
+  return track.album ? `${when}  \u00b7  ${track.album}` : when;
 }
 
 module.exports = async (req, res) => {
@@ -297,7 +323,8 @@ module.exports = async (req, res) => {
         artist: track.artist,
         artDataUri,
         badge: "",
-        isPlaying: track.isPlaying
+        isPlaying: track.isPlaying,
+        status: statusText(track)
       })
     );
   } catch (e) {
